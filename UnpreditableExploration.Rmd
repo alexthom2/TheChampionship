@@ -1,0 +1,198 @@
+---
+title: "Is the Championship the Most Unpredictable?"
+author: "Alex Thom"
+date: "08/02/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+
+library(tidyverse)
+
+
+```
+
+
+```{r}
+
+allmatches <- read_csv("spi_matches.csv")
+
+str(allmatches)
+
+````
+
+
+```{r}
+
+legpred <- allmatches %>% group_by(league) %>%
+                          summarise(n = n())
+
+
+ggplot(legpred, aes(x = reorder(league, n), y = n)) + geom_col() + coord_flip()
+
+
+```
+
+
+
+
+```{r}
+
+library(scales)
+
+leaguepreds <- allmatches %>% mutate(res = if_else(prob1 > prob2, 
+                                                   if_else(prob1 > probtie, "HW", "D"), 
+                                                   if_else(prob2 > probtie, "AW", "D"))) %>%
+                                    mutate(scoredel = score1 - score2) %>%
+                                mutate(actres = if_else(scoredel >= 0, if_else(scoredel > 0, "HW", "D"), "AW")) %>%
+                                      mutate(score = if_else(actres == res, 1,0)) %>%
+                                      group_by(league) %>%
+                                        summarise(n = n(), tot = sum(score, na.rm = T)) %>%
+                                          mutate(percor = tot/n) %>%
+                                            mutate(colls = if_else(league == "English League Championship", "Cor", "oth")) %>%
+                              filter(league != c("UEFA Champions League", "UEFA Europa League"))
+
+
+
+cols1 <- c("Cor" = "#b335fc", "oth" = "#a6a6a6")
+
+ggplot(leaguepreds, aes(x = reorder(league, percor), y = percor, fill = colls)) + 
+                                                      geom_col() + 
+                                                      coord_flip() +
+                                                      scale_fill_manual(values = cols1) +
+                                                        labs(x = "", y = "Percent Correct", title = "Prediction Correct Percent By League") +
+                                                          scale_y_continuous(labels = percent_format()) +
+                                                            guides(fill = F) +
+                                                                theme(panel.background = element_blank())
+
+
+
+
+
+````
+
+```{r}
+
+
+leaguepreds2 <- allmatches %>% mutate(res = if_else(prob1 > prob2, 
+                                                   if_else(prob1 > probtie, "HW", "D"), 
+                                                   if_else(prob2 > probtie, "AW", "D"))) %>%
+                                    mutate(scoredel = score1 - score2) %>%
+                                mutate(actres = if_else(scoredel >= 0, if_else(scoredel > 0, "HW", "D"), "AW")) %>%
+                                      mutate(score = if_else(actres == res, 1,0)) %>%
+                                        separate(date, c("Day", "Month", "Year"), "/") %>%
+                                      group_by(Year, league) %>%
+                                        summarise(n = n(), tot = sum(score, na.rm = T)) %>%
+                                          mutate(percor = tot/n) %>%
+                                            mutate(colls = if_else(league == "English League Championship", "Cor", "oth")) %>%
+                              filter(league != c("UEFA Champions League", "UEFA Europa League")) %>%
+                                    filter(Year != 2020)
+
+
+ggplot(leaguepreds2, aes(x = Year, y = percor, col = league)) + geom_point()
+
+
+```
+
+
+```{r}
+
+
+leaguepreds3 <- allmatches %>% mutate(res = if_else(prob1 > prob2, 
+                                                   if_else(prob1 > probtie, "HW", "D"), 
+                                                   if_else(prob2 > probtie, "AW", "D"))) %>%
+                                    mutate(scoredel = score1 - score2) %>%
+                                mutate(actres = if_else(scoredel >= 0, if_else(scoredel > 0, "HW", "D"), "AW")) %>%
+                                      mutate(score = if_else(actres == res, 1,0)) %>%
+                                        separate(date, c("Day", "Month", "Year"), "/") %>%
+                                      group_by(Year, league) %>%
+                                        summarise(n = n(), tot = sum(score, na.rm = T)) %>%
+                                          mutate(percor = tot/n) %>%
+                                            mutate(colls = if_else(league == "English League Championship", "Cor", "oth")) %>%
+                              filter(league %in% c("English League Championship", "English League Two", "English League One", "Barclays Premier League")) %>%
+                                    filter(Year != 2020)
+
+
+col2 <- c("English League Championship" = "#b335fc", "English League Two" = "#4287f5", "English League One" = "#f7c325", "Barclays Premier League" = "#00b52a")
+
+ggplot(leaguepreds3, aes(x = Year, y = percor, col = league)) + 
+                                               geom_point(size = 3) + 
+                                                      ylim(0.3,0.6) +
+                                              scale_color_manual(values = col2) +
+                                                  guides(colour = guide_legend(title = "League")) +
+                                                  scale_y_continuous(labels = percent_format()) +
+                                                        labs(x = "Year", y = "Percent Correct Results", title = "Year Correct Results ") +
+                                                          theme(panel.background = element_rect(fill = "#d9dbda"),
+                                                                panel.grid = element_blank())
+
+
+
+
+```
+
+
+
+```{r}
+
+
+prob <- allmatches %>% mutate(diff = abs(prob1 - prob2))  %>%
+                                    filter(league != "UEFA Champions League") %>%
+                                           filter(league != "UEFA Europa League") %>%
+                                         mutate(colls = if_else(league == "English League Championship", "Cor", "oth")) 
+
+fill1 <-  c("Cor" = "#b335fc", "oth" = "#a6a6a6")
+
+ggplot(prob, aes(x = reorder(league,diff), y = diff, fill = colls)) + 
+                                                      geom_boxplot() + 
+                                                              coord_flip() + 
+                                                              scale_fill_manual(values = fill1) + 
+                                                                  guides(fill = F) + 
+                                                                    labs(y = "Win Difference", x = "", title = "Difference in Chances of Victory For All Leagues \nin fivethirtyeight model") + 
+                                                                theme(panel.background = element_blank())
+
+
+
+
+```
+
+
+```{r}
+library(ggridges)
+
+prob2 <- allmatches %>% mutate(diff = abs(prob1 - prob2))  %>%
+                             separate(date, c("Day", "Month", "Year"), "/") %>%
+                                    filter(league =="English League Championship") 
+
+
+ggplot(prob2, aes(y = Year, x = diff)) + geom_density_ridges(fill = "#b335fc", alpha = 0.6) + labs(x = "Difference Between Teams", title = "Comparison of the Win Probability for the Teams Across Multiple Years")
+
+
+````
+
+
+```{r}
+
+goalspread <- allmatches %>% select(proj_score1, score1, league) %>%
+                                gather("score", "val", -league)
+
+
+ggplot(goalspread, aes(x = val, fill = score)) + geom_density() + facet_wrap(~league)
+
+
+```
+
+
+
+```{r}
+
+
+
+goalsav <- allmatches %>% 
+
+
+```
